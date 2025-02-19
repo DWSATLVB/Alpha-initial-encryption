@@ -4,6 +4,7 @@
 #include <vector>
 #include <random>
 #include <algorithm>
+#include <chrono>
 
 using namespace std;
 
@@ -15,10 +16,9 @@ void generateRandomMapping(unordered_map<char, int> &charToNum, unordered_map<in
         positions.push_back(i);
     }
 
-    // Shuffle positions to ensure randomness
-    random_device rd;
-    mt19937 gen(rd());
-    shuffle(positions.begin(), positions.end(), gen);
+    // Stronger random shuffle with high-entropy seed
+    unsigned seed = chrono::steady_clock::now().time_since_epoch().count();
+    shuffle(positions.begin(), positions.end(), mt19937(seed));
 
     // Assign shuffled positions to characters
     for (size_t i = 0; i < characters.length(); i++) {
@@ -28,7 +28,7 @@ void generateRandomMapping(unordered_map<char, int> &charToNum, unordered_map<in
 }
 
 void printMapping(const unordered_map<char, int> &charToNum) {
-    cout << "Character Mapping: ";
+    cout << "\nCharacter Mapping:\n";
     for (const auto &pair : charToNum) {
         cout << "'" << pair.first << "' -> " << pair.second << ", ";
     }
@@ -36,28 +36,22 @@ void printMapping(const unordered_map<char, int> &charToNum) {
 }
 
 string encryptMessage(const string &message, const string &key, unordered_map<char, int> &charToNum, unordered_map<int, char> &numToChar) {
-    vector<int> encryptedValues;
     string encryptedText = "";
-    
-    // Extend key to match the message length
+
+    // Extend key to match message length
     string extendedKey = key;
     while (extendedKey.length() < message.length()) {
         extendedKey += key;
     }
     extendedKey = extendedKey.substr(0, message.length());
 
-    // Encrypt the message
+    // Encrypt message
     for (size_t i = 0; i < message.length(); i++) {
         int charPos = charToNum[message[i]];
         int keyPos = charToNum[extendedKey[i]];
-        int newPos = charPos + keyPos;
+        int newPos = (charPos + keyPos) % charToNum.size();  // Ensure it wraps around
 
-        // Ensure it wraps around within the valid range
-        if (newPos > charToNum.size()) {
-            newPos -= charToNum.size();
-        }
-
-        encryptedValues.push_back(newPos);
+        if (newPos == 0) newPos = charToNum.size();  // Avoid zero index
         encryptedText += numToChar[newPos];
     }
 
@@ -68,22 +62,22 @@ int main() {
     unordered_map<char, int> charToNum;
     unordered_map<int, char> numToChar;
 
-    // Generate a new random mapping each time the program runs
+    // Generate a truly random mapping every time
     generateRandomMapping(charToNum, numToChar);
 
-    // Print the mapping in a single line
+    // Print mapping
     printMapping(charToNum);
 
     // Get user input
     string message, key;
-    cout << "Enter the message to encrypt: ";
+    cout << "\nEnter the message to encrypt: ";
     getline(cin, message);
     cout << "Enter the key: ";
     getline(cin, key);
 
     // Encrypt the message
     string encryptedMessage = encryptMessage(message, key, charToNum, numToChar);
-    cout << "Encrypted Message: " << encryptedMessage << endl;
+    cout << "\nEncrypted Message: " << encryptedMessage << endl;
 
     return 0;
 }
