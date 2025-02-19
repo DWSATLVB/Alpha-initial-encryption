@@ -2,118 +2,88 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <ctime>
-#include <cstdlib>
-#include <algorithm>  // For std::shuffle
-#include <random>     // For random number generation
+#include <random>
+#include <algorithm>
 
 using namespace std;
 
 void generateRandomMapping(unordered_map<char, int> &charToNum, unordered_map<int, char> &numToChar) {
+    string characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?@#$%^&*()-_=+[]{}:;\"'<>/\\";
+
     vector<int> positions;
-    
-    // Add positions for letters a-z, A-Z, and space
-    for (int i = 1; i <= 53; i++) {
+    for (int i = 1; i <= characters.length(); i++) {
         positions.push_back(i);
     }
 
-    // Add positions for digits 0-9
-    for (int i = 54; i <= 63; i++) {
-        positions.push_back(i);
-    }
-
-    // Add positions for punctuation and special characters
-    string specialChars = ".,'\"()[]{}:;?!@#$%^&*-_+=<>";
-    for (int i = 64; i < 64 + specialChars.length(); i++) {
-        positions.push_back(i);
-    }
-
-    // Shuffle the positions to ensure random assignment
+    // Shuffle positions to ensure randomness
     random_device rd;
     mt19937 gen(rd());
     shuffle(positions.begin(), positions.end(), gen);
 
-    // Now assign the shuffled positions to characters
-    int idx = 0;
-
-    // Assign for lowercase a-z
-    for (char ch = 'a'; ch <= 'z'; ++ch) {
-        charToNum[ch] = positions[idx];
-        numToChar[positions[idx]] = ch;
-        idx++;
+    // Assign shuffled positions to characters
+    for (size_t i = 0; i < characters.length(); i++) {
+        charToNum[characters[i]] = positions[i];
+        numToChar[positions[i]] = characters[i];
     }
+}
 
-    // Assign for uppercase A-Z
-    for (char ch = 'A'; ch <= 'Z'; ++ch) {
-        charToNum[ch] = positions[idx];
-        numToChar[positions[idx]] = ch;
-        idx++;
+void printMapping(const unordered_map<char, int> &charToNum) {
+    cout << "Character Mapping: ";
+    for (const auto &pair : charToNum) {
+        cout << "'" << pair.first << "' -> " << pair.second << ", ";
     }
-
-    // Assign for space
-    charToNum[' '] = positions[idx];
-    numToChar[positions[idx]] = ' ';
-    idx++;
-
-    // Assign for digits 0-9
-    for (char ch = '0'; ch <= '9'; ++ch) {
-        charToNum[ch] = positions[idx];
-        numToChar[positions[idx]] = ch;
-        idx++;
-    }
-
-    // Assign for special characters
-    for (char ch : specialChars) {
-        charToNum[ch] = positions[idx];
-        numToChar[positions[idx]] = ch;
-        idx++;
-    }
+    cout << endl;
 }
 
 string encryptMessage(const string &message, const string &key, unordered_map<char, int> &charToNum, unordered_map<int, char> &numToChar) {
-    vector<char> keyExpanded;
-    string encrypted = "";
-
-    // Expand key to match message length
-    for (size_t i = 0; i < message.length(); i++) {
-        keyExpanded.push_back(key[i % key.length()]);
+    vector<int> encryptedValues;
+    string encryptedText = "";
+    
+    // Extend key to match the message length
+    string extendedKey = key;
+    while (extendedKey.length() < message.length()) {
+        extendedKey += key;
     }
+    extendedKey = extendedKey.substr(0, message.length());
 
-    for (size_t j = 0; j < message.length(); ++j) {
-        int combined = charToNum[message[j]] + charToNum[keyExpanded[j]];
-        
-        // Ensure it wraps within the valid range
-        if (combined > 63) {
-            combined = (combined % 63 == 0) ? 63 : combined % 63;
+    // Encrypt the message
+    for (size_t i = 0; i < message.length(); i++) {
+        int charPos = charToNum[message[i]];
+        int keyPos = charToNum[extendedKey[i]];
+        int newPos = charPos + keyPos;
+
+        // Ensure it wraps around within the valid range
+        if (newPos > charToNum.size()) {
+            newPos -= charToNum.size();
         }
 
-        encrypted += numToChar[combined];
+        encryptedValues.push_back(newPos);
+        encryptedText += numToChar[newPos];
     }
 
-    return encrypted;
+    return encryptedText;
 }
 
 int main() {
-    srand(time(0)); // Seed for randomness
-
     unordered_map<char, int> charToNum;
     unordered_map<int, char> numToChar;
+
+    // Generate a new random mapping each time the program runs
     generateRandomMapping(charToNum, numToChar);
 
+    // Print the mapping in a single line
+    printMapping(charToNum);
+
+    // Get user input
     string message, key;
-    cout << "Enter Message: ";
+    cout << "Enter the message to encrypt: ";
     getline(cin, message);
-    cout << "Enter Key: ";
+    cout << "Enter the key: ";
     getline(cin, key);
 
-    string encrypted = encryptMessage(message, key, charToNum, numToChar);
-
-    cout << "\nEncrypted Message: " << encrypted << endl;
-    
-    cout << "\nCharacter Mapping:\n";
-    for (auto &pair : charToNum) {
-        cout << "'" << pair.first << "' -> " << pair.second << endl;
-    }
+    // Encrypt the message
+    string encryptedMessage = encryptMessage(message, key, charToNum, numToChar);
+    cout << "Encrypted Message: " << encryptedMessage << endl;
 
     return 0;
 }
